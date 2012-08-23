@@ -1,0 +1,3 @@
+Use this scraping tool to extract your sales figures for the current month from your Kindle Direct Publishing account at Amazon. 
+
+It's intended as a smaller part of a much larger project to extract sales figures from other outlets and collate them into a SQLITE3 table for each month. The index page will eventually contain buttons to query the table and return results for different book titles and months but for the moment it simply returns a table of Amazon results for the current month.

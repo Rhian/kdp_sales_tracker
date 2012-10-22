@@ -46,7 +46,7 @@ op = DB.prepare("INSERT into sales_table (books,figures) VALUES (?,?)")
   end
 end
 
-# Simple front end display on port 4567
+# Simple front end display 
 
 get '/' do
   haml :index

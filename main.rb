@@ -25,6 +25,8 @@ end
 
 # Parse json, set up db and write the two columns we need to table after stripping tags etc
 
+# This will be rewritten using DataMapper
+
 url = "https://kdp.amazon.com/self-publishing/reports/transactionReport?_=xxxxxxx&previousMonthReports=false&marketplaceID=xxxxxxx"
 
 response = scraper.get(url)

@@ -1,63 +1,62 @@
 require 'rubygems'
-require 'mechanize'
+require 'watir-webdriver'
 require 'json'
 require 'sqlite3'
 require 'haml'
 require 'sinatra'
+require 'data_mapper'
 
-# use Mechanize gem to log into Amazon and set cookies
+# Log in to Amazon and find latest json for sales reports
 
-agent = Mechanize.new
-page  = agent.get('https://kdp.amazon.com/self-publishing/signin')
-inner_page = page.link_with(:dom_class => 'new-signInButton').click
+begin
+	browser = Watir::Browser.new(:firefox)
+	browser.goto('https://kdp.amazon.com/self-publishing/signin')
 
-form = inner_page.forms.first
+	browser.link(:class => 'new-signInButton').click
+	browser.text_field(:name => "email").set(ARGV[0])
+	browser.text_field(:name => "password").set(ARGV[1])
+	browser.send_keys :enter
+	browser.goto("https://kdp.amazon.com/self-publishing/reports/transactionReport?xxxxxxxxxx")
+	browser.wait
 
-form.email = ARGV[0]
-form.password = ARGV[1]
+	results = browser.text
+	parsed_results = JSON.parse(results)
 
-inner_page = agent.submit(form)
+# Set up DataMapper model 
 
-scraper = Mechanize.new
-agent.cookies.each do |cookie|
-    scraper.cookie_jar.add!(cookie)
-end
+	DataMapper.setup(:default, 'sqlite3:amazon_data.db')
 
-# Parse json, set up db and write the two columns we need to table after stripping tags etc
+	class Sales
+  	include DataMapper::Resource
+  	property :id, Serial, :key => true
+  	property :booktitles, String
+  	property :booksales, Integer
+	end
 
-# This will be rewritten using DataMapper
+	DataMapper.auto_migrate!
 
-url = "https://kdp.amazon.com/self-publishing/reports/transactionReport?_=xxxxxxx&previousMonthReports=false&marketplaceID=xxxxxxx"
+# Update with parsed json from book title and sales column
 
-response = scraper.get(url)
-results = JSON.parse(response.body)
+	adapter = DataMapper.repository(:default).adapter
 
-DB = SQLite3::Database.open( "amazon_data" )
+	  parsed_results["aaData"].each_with_index do |entry, i|
+	  @output = entry[1].gsub(/<\/?[^>]*>/, "")
+	  @output2 = entry[5]
+	  adapter.execute('INSERT into Sales (booktitles,booksales) VALUES (?,?)', @output, @output2)
+	  end
 
-DB.execute "DROP TABLE IF EXISTS sales_table"
-DB.execute( "create table sales_table (id INTEGER PRIMARY KEY AUTOINCREMENT, books VARCHAR, figures
-VARCHAR);" )
+	DataMapper.auto_upgrade!
 
-op = DB.prepare("INSERT into sales_table (books,figures) VALUES (?,?)")
+# Close browser
 
-  results["aaData"].each_with_index do |entry, i|
-  @output = entry[1].gsub(/<\/?[^>]*>/, "")
-  @output2 = entry[3]
-  if results != nil
-  op.execute(@output,@output2)
-  end
-end
+	browser.close
+	rescue StandardError=>e
+	  puts "Error: #{e}"
+	end
 
-# Simple front end display 
+# Define table that appears on index page
 
 get '/' do
-  haml :index
+    @sales = Sales.all
+    haml :index
 end
-
-post '/statistics' do
-  haml :statistics
-  @booktitles = DB.execute( "select books from sales_table" )
-  @booksales = DB.execute( "select figures from sales_table" )
-end
-
-

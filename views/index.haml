@@ -1,4 +1,8 @@
-%form{:action => "/statistics", :method => "post"}
-  %p
-    %input{:type => "submit", :value => "Get Stats!"} 
-
+%table
+ %tbody
+ - @sales.each do |sales|
+  %tr
+   %td
+    = sales.booktitles
+   %td
+    = sales.booksales
